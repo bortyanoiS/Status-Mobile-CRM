@@ -10,48 +10,65 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-    <style>
+   <style>
         /* На екрані монітора чек взагалі прихований */
         #receipt-print-zone { display: none; }
 
-        /* НАЛАШТУВАННЯ ДЛЯ РЕАЛЬНОГО ДРУКУ */
+        /* НАЛАШТУВАННЯ ДЛЯ ОПТИМАЛЬНОГО ДРУКУ БЕЗ ПУСТОТИ */
         @media print {
-            /* Приховуємо конкретно шапку та головний екран сайту, не чіпаючи начинку чека */
-            header, main, button, form, section, div:not(#receipt-print-zone):not(#receipt-print-zone *) { display: none !important; } 
+            /* Налаштування самої сторінки: прибираємо системні поля браузера */
+            @page {
+                size: 58mm auto; /* Стрічка 58мм, висота автоматична по контенту */
+                margin: 0 !important; /* Повністю прибираємо білі відступи зверху/знизу */
+            }
+
+            html, body {
+                background: #fff !important;
+                color: #000 !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            /* Приховуємо весь інтерфейс CRM, крім чека */
+            header, main, button, form, section, div:not(#receipt-print-zone):not(#receipt-print-zone *) { 
+                display: none !important; 
+            } 
             
-            /* Робимо зону чека видимою */
+            /* Головний контейнер чека */
             #receipt-print-zone { 
                 display: block !important; 
-                width: 58mm; 
-                max-width: 58mm;
-                color: #000 !important;
-                background: #fff !important;
+                width: 58mm !important; 
+                max-width: 58mm !important;
+                padding: 4px 4px 10px 4px !important; /* Мінімальний відступ знизу (10px) лише для того, щоб відірвати чек */
+                margin: 0 auto !important;
+                box-sizing: border-box !important;
                 font-family: 'Courier New', Courier, monospace !important;
                 font-size: 13px;
-                line-height: 1.3;
-                padding: 0;
-                margin: 0;
+                line-height: 1.2;
             }
-            /* Гарантуємо, що всі тексти, лінії та абзаци всередині чека ПРАЦЮЮТЬ */
+
+            /* Гарантуємо правильне відображення елементів */
             #receipt-print-zone div, 
             #receipt-print-zone p, 
             #receipt-print-zone span, 
             #receipt-print-zone b { 
                 display: block !important; 
             }
-            /* Спеціальний фікс для рядків, де назва зліва, а ціна справа */
+            
+            /* Фікс для рядків "назва --- ціна" */
             #receipt-print-zone .flex-row {
                 display: flex !important;
                 justify-content: space-between !important;
                 flex-direction: row !important;
             }
-            /* Стилі оформлення */
+
             .text-center { text-align: center !important; }
             .text-right { text-align: right !important; }
             .bold { font-weight: bold !important; }
-            .receipt-header { font-size: 16px; font-weight: bold; letter-spacing: 1px; margin-bottom: 2px; text-transform: uppercase; }
-            .divider { margin: 4px 0; border-bottom: 1px dashed #000 !important; display: block !important; height: 1px; }
-            .receipt-total { font-size: 15px; font-weight: bold; margin-top: 4px; }
+            .receipt-header { font-size: 15px; font-weight: bold; text-transform: uppercase; }
+            .divider { margin: 3px 0; border-bottom: 1px dashed #000 !important; display: block !important; height: 1px; }
+            .receipt-total { font-size: 14px; font-weight: bold; margin-top: 3px; }
         }
     </style>
 </head>
