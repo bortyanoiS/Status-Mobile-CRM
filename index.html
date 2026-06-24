@@ -10,36 +10,50 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-    <style>
-        /* СТИЛІ ДЛЯ ДРУКУ ЧЕКА */
-        #receipt-print-zone { display: none; }
+   <style>
+    /* На екрані монітора чек взагалі прихований */
+    #receipt-print-zone { display: none; }
 
-        @media print {
-            /* Ховаємо весь інтерфейс сайту */
-            body * { display: none !important; } 
-            
-            /* Показуємо тільки зону чека */
-            #receipt-print-zone { 
-                display: block !important; 
-                width: 58mm; 
-                max-width: 58mm;
-                color: #000 !important;
-                background: #fff !important;
-                font-family: 'Courier New', Courier, monospace;
-                font-size: 12px;
-                line-height: 1.4;
-                padding: 0;
-                margin: 0;
-            }
-            .text-center { text-align: center; }
-            .text-right { text-align: right; }
-            .bold { font-weight: bold; }
-            .receipt-title { font-size: 16px; font-weight: bold; letter-spacing: 1px; margin-bottom: 4px; }
-            .divider { margin: 5px 0; border-bottom: 1px dashed #000; }
-            .receipt-total { font-size: 14px; font-weight: bold; margin-top: 5px; }
-            .mt-2 { margin-top: 8px; }
+    /* НАЛАШТУВАННЯ ДЛЯ РЕАЛЬНОГО ДРУКУ */
+    @media print {
+        /* Приховуємо конкретно шапку та головний екран сайту, не чіпаючи начинку чека */
+        header, main, button, form { display: none !important; } 
+        
+        /* Робимо зону чека видимою */
+        #receipt-print-zone { 
+            display: block !important; 
+            width: 58mm; 
+            max-width: 58mm;
+            color: #000 !important;
+            background: #fff !important;
+            font-family: 'Courier New', Courier, monospace !important;
+            font-size: 13px;
+            line-height: 1.3;
+            padding: 0;
+            margin: 0;
         }
-    </style>
+        /* Гарантуємо, що всі тексти, лінії та абзаци всередині чека ПРАЦЮЮТЬ */
+        #receipt-print-zone div, 
+        #receipt-print-zone p, 
+        #receipt-print-zone span, 
+        #receipt-print-zone b { 
+            display: block !important; 
+        }
+        /* Спеціальний фікс для рядків, де назва зліва, а ціна справа */
+        #receipt-print-zone .flex-row {
+            display: flex !important;
+            justify-content: space-between !important;
+            flex-direction: row !important;
+        }
+        /* Стилі оформлення */
+        .text-center { text-align: center !important; }
+        .text-right { text-align: right !important; }
+        .bold { font-weight: bold !important; }
+        .receipt-header { font-size: 16px; font-weight: bold; letter-spacing: 1px; margin-bottom: 2px; text-transform: uppercase; }
+        .divider { margin: 4px 0; border-bottom: 1px dashed #000 !important; display: block !important; height: 1px; }
+        .receipt-total { font-size: 15px; font-weight: bold; margin-top: 4px; }
+    }
+</style>
 </head>
 <body class="bg-slate-900 text-slate-100 font-sans min-h-screen">
 
@@ -280,24 +294,54 @@
 
     </main>
 
-    <div id="receipt-print-zone">
-        <div class="text-center receipt-title">STATUS MOBILE</div>
-        <div class="text-center" style="font-size: 10px;">Сервісний центр / Магазин</div>
-        <div class="divider">--------------------------------</div>
-        <div><b>Дата:</b> <span id="p-date"></span></div>
-        <div><b>Тип:</b> <span id="p-type"></span></div>
-        <div class="divider">--------------------------------</div>
-        <div class="bold" id="p-title" style="font-size: 13px; margin: 5px 0;">Назва товару</div>
-        <div id="p-desc" style="font-size: 11px; color: #333;">Деталі</div>
-        <div class="divider">--------------------------------</div>
-        <div class="text-right receipt-total">РАЗОМ: <span id="p-total"></span> ₴</div>
-        <div id="p-cash-row" style="display:none;" class="text-right">Отримано: <span id="p-cash"></span> ₴</div>
-        <div id="p-change-row" style="display:none;" class="text-right">Решта: <span id="p-change"></span> ₴</div>
-        <div class="divider">--------------------------------</div>
-        <div class="text-center mt-2" style="font-size: 10px; font-weight: bold;">Дякуємо за довіру!</div>
-        <div class="text-center" style="font-size: 9px;">м. Біла Церква</div>
+    <!-- ================= ЗОНА ДРУКУ (ГАРНИЙ ЧЕК) ================= -->
+<div id="receipt-print-zone">
+    <div class="text-center receipt-header">STATUS MOBILE</div>
+    <div class="text-center" style="font-size: 11px;">Ремонт та аксесуари</div>
+    <div class="text-center" style="font-size: 10px;">м. Біла Церква</div>
+    
+    <div class="divider"></div>
+    
+    <div class="flex-row">
+        <span><b>Дата:</b></span>
+        <span id="p-date" class="text-right">24.06.2026, 11:00</span>
     </div>
-
+    <div class="flex-row">
+        <span><b>Чек:</b></span>
+        <span id="p-type" class="text-right">Продаж</span>
+    </div>
+    
+    <div class="divider"></div>
+    
+    <!-- Назва товару/ремонту -->
+    <div class="bold" id="p-title" style="font-size: 14px; margin: 3px 0; min-height: 16px;">Назва позиції</div>
+    <!-- Опис клієнта або категорія -->
+    <div id="p-desc" style="font-size: 11px; color: #000; font-style: italic;">Деталі операції</div>
+    
+    <div class="divider"></div>
+    
+    <!-- Фінанси -->
+    <div class="flex-row receipt-total">
+        <span>ЗАГАЛОМ:</span>
+        <span><span id="p-total">0</span> ₴</span>
+    </div>
+    
+    <div id="p-cash-row" style="display:none;">
+        <div class="flex-row" style="font-size: 12px; margin-top: 2px;">
+            <span>Отримано:</span>
+            <span><span id="p-cash">0</span> ₴</span>
+        </div>
+        <div class="flex-row" style="font-size: 12px; font-weight: bold;">
+            <span>Решта:</span>
+            <span><span id="p-change">0</span> ₴</span>
+        </div>
+    </div>
+    
+    <div class="divider"></div>
+    
+    <div class="text-center" style="font-size: 11px; font-weight: bold; margin-top: 5px;">ДЯКУЄМО ЗА ВІЗИТ!</div>
+    <div class="text-center" style="font-size: 10px; letter-spacing: 2px;">*** ТОВАРНИЙ ЧЕК ***</div>
+</div>
     <script>
         const placeholderImg = "https://images.unsplash.com/photo-1585647347483-22b66260dfff?auto=format&fit=crop&w=300&q=80";
 
