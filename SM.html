@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Status Mobile CRM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        /* СТИЛІ ДЛЯ ДРУКУ ЧЕКА */
+        #receipt-print-zone { display: none; }
+
+        @media print {
+            /* Ховаємо весь інтерфейс сайту */
+            body * { display: none !important; } 
+            
+            /* Показуємо тільки зону чека */
+            #receipt-print-zone { 
+                display: block !important; 
+                width: 58mm; 
+                max-width: 58mm;
+                color: #000 !important;
+                background: #fff !important;
+                font-family: 'Courier New', Courier, monospace;
+                font-size: 12px;
+                line-height: 1.4;
+                padding: 0;
+                margin: 0;
+            }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .bold { font-weight: bold; }
+            .receipt-title { font-size: 16px; font-weight: bold; letter-spacing: 1px; margin-bottom: 4px; }
+            .divider { margin: 5px 0; border-bottom: 1px dashed #000; }
+            .receipt-total { font-size: 14px; font-weight: bold; margin-top: 5px; }
+            .mt-2 { margin-top: 8px; }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen">
+
+    <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-cyan-500/10 rounded-xl border border-cyan-500/30">
+                    <i class="fa-solid fa-mobile-screen text-xl text-cyan-400"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-white tracking-wide">Status <span class="text-cyan-400">Mobile</span></h1>
+                    <p class="text-xs text-slate-400">Єдине робоче вікно майстерні (Хмарна синхронізація + Друк)</p>
+                </div>
+            </div>
+            
+            <nav class="flex bg-slate-950 p-1 rounded-xl border border-slate-700 w-full sm:w-auto overflow-x-auto">
+                <button onclick="switchTab('main')" id="btn-main" class="flex-1 sm:flex-none px-5 py-2 rounded-lg text-sm font-medium transition-all bg-cyan-600 text-white shadow-lg whitespace-nowrap cursor-pointer">
+                    <i class="fa-solid fa-cash-register mr-2"></i>Обслуговування
+                </button>
+                <button onclick="switchTab('stock')" id="btn-stock" class="flex-1 sm:flex-none px-5 py-2 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white whitespace-nowrap cursor-pointer">
+                    <i class="fa-solid fa-boxes-stacked mr-2"></i>Склад (<span id="stock-badge">0</span>)
+                </button>
+                <button onclick="switchTab('history')" id="btn-history" class="flex-1 sm:flex-none px-5 py-2 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white whitespace-nowrap cursor-pointer">
+                    <i class="fa-solid fa-receipt mr-2"></i>Журнал (<span id="count-badge">0</span>)
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        
+        <div id="cloud-loader" class="text-center py-4 text-cyan-400 text-sm font-medium animate-pulse">
+            <i class="fa-solid fa-cloud-arrow-down mr-2"></i> Синхронізація з хмарою Status Mobile...
+        </div>
+        
+        <section id="tab-main" class="grid grid-cols-1 lg:grid-cols-3 gap-8" style="display: none;">
+            
+            <div class="lg:col-span-2 space-y-6">
+                
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+                    <label class="block text-sm font-medium text-slate-300">Швидкий пошук товару чи послуги ремонту:</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-slate-400 text-lg"></i>
+                        <input type="text" id="main-search" oninput="liveSearch()" placeholder="Почніть вводити: Чохол, Скло, Заміна екрану..." class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-12 pr-4 py-3.5 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition text-lg">
+                    </div>
+                    
+                    <div id="search-results" class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2"></div>
+                </div>
+
+                <div id="checkout-zone" style="display: none;" class="bg-slate-800 p-6 rounded-2xl border border-cyan-500/40 shadow-2xl space-y-6 transition-all">
+                    <div class="flex justify-between items-start border-b border-slate-700 pb-4">
+                        <div class="flex items-center gap-4">
+                            <img id="checkout-img" src="" class="w-16 h-16 object-cover rounded-xl bg-slate-900 border border-slate-700 shrink-0 hidden">
+                            <div id="checkout-icon-placeholder" class="w-16 h-16 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 text-xl shrink-0 hidden">
+                                <i class="fa-solid fa-screwdriver-wrench"></i>
+                            </div>
+                            <div>
+                                <span id="checkout-badge" class="text-xs px-2 py-0.5 rounded font-bold uppercase tracking-wider">Тип</span>
+                                <h2 id="checkout-title" class="text-xl font-bold text-white mt-1">Назва позиції</h2>
+                            </div>
+                        </div>
+                        <button onclick="closeCheckout()" class="text-slate-400 hover:text-rose-400 text-lg cursor-pointer"><i class="fa-solid fa-circle-xmark"></i></button>
+                    </div>
+
+                    <form id="checkout-repair-form" style="display: none;" onsubmit="processRepairOrder(event)" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1.5">ПІБ Клієнта</label>
+                                <input type="text" id="c-repair-client" required placeholder="Іван Іванов" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1.5">Номер телефону</label>
+                                <input type="tel" id="c-repair-phone" required placeholder="+380" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1.5">Собівартість запчастини (₴)</label>
+                                <input type="number" id="c-repair-cost" min="0" value="0" oninput="recalcCheckoutRepair()" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1.5">Націнка на деталь (%)</label>
+                                <input type="number" id="c-repair-markup" min="0" value="30" oninput="recalcCheckoutRepair()" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1.5">Фіксована робота (₴)</label>
+                                <input type="number" id="c-repair-work" min="0" readonly class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-400 cursor-not-allowed">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 bg-slate-950 p-4 rounded-xl border border-slate-700/50 mt-4">
+                            <div>
+                                <p class="text-xs text-slate-400">Разом до сплати:</p>
+                                <p class="text-xl font-bold text-emerald-400"><span id="c-rep-total">0</span> ₴</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-slate-400">Чистий заробіток:</p>
+                                <p class="text-xl font-bold text-cyan-400"><span id="c-rep-profit">0</span> ₴</p>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-3 rounded-xl transition cursor-pointer">
+                            <i class="fa-solid fa-print mr-2"></i> Закрити ремонт та роздрукувати чек
+                        </button>
+                    </form>
+
+                    <form id="checkout-product-form" style="display: none;" onsubmit="processProductOrder(event)" class="space-y-4">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-xs text-slate-400">Ціна товару:</p>
+                                <p class="text-2xl font-black text-emerald-400"><span id="c-prod-price-lbl">0</span> ₴</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xs text-slate-400">На складі:</p>
+                                <p class="text-sm font-semibold text-slate-300 mt-1"><span id="c-prod-qty-lbl">0</span> шт</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1.5">Отримано від клієнта (₴)</label>
+                                <input type="number" id="c-prod-cash" min="0" placeholder="Введіть суму купюр" oninput="recalcProductChange()" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-lg text-white font-bold focus:outline-none focus:border-cyan-500">
+                            </div>
+                            <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-800 flex flex-col justify-center">
+                                <p class="text-xs text-slate-400 uppercase font-semibold">Решта клієнту:</p>
+                                <p class="text-2xl font-black text-amber-400 mt-1"><span id="c-prod-change">0</span> ₴</p>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl transition text-md cursor-pointer">
+                            <i class="fa-solid fa-print mr-2"></i> Продати та роздрукувати чек
+                        </button>
+                    </form>
+                </div>
+
+            </div>
+
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-between h-fit space-y-6">
+                <div>
+                    <h3 class="text-md font-semibold text-white border-b border-slate-700 pb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-cyan-400"></i> Фінанси за сьогодні
+                    </h3>
+                    <div class="space-y-4 mt-4">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                            <p class="text-xs text-slate-400 uppercase tracking-wider">Каса (Всього грошей)</p>
+                            <p class="text-3xl font-black text-emerald-400 mt-1"><span id="stats-turnover">0</span> ₴</p>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                            <p class="text-xs text-slate-400 uppercase tracking-wider">Чистий заробіток</p>
+                            <p class="text-3xl font-black text-cyan-400 mt-1"><span id="stats-profit">0</span> ₴</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="tab-stock" style="display: none;" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-4 h-fit">
+                <div class="border-b border-slate-700 pb-3">
+                    <h2 class="text-md font-semibold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-plus text-cyan-400"></i> Створити позицію в базі
+                    </h2>
+                </div>
+                <form id="stock-form" onsubmit="addStockItem(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Тип номенклатури</label>
+                        <select id="prod-type" onchange="adjustStockForm()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+                            <option value="product">Физичний Товар (Скло, Чохол і т.д.)</option>
+                            <option value="service">Послуга / Ремонт (Фіксована ціна роботи)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Назва позиції (повна)</label>
+                        <input type="text" id="prod-name" required placeholder="Захисне скло iPhone 13 Pro" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Посилання на фото з інтернету</label>
+                        <input type="url" id="prod-img" placeholder="https://images.unsplash.com/photo-..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+                    </div>
+                    
+                    <div id="stock-fields-product" class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Закуп (₴)</label>
+                            <input type="number" id="prod-cost" min="0" value="0" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Продаж (₴)</label>
+                            <input type="number" id="prod-price" min="0" value="0" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">К-сть (шт)</label>
+                            <input type="number" id="prod-qty" min="0" value="5" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div id="stock-fields-service" style="display: none;">
+                        <label class="block text-xs text-slate-400 mb-1">Вартість роботи майстра (фіксована, ₴)</label>
+                        <input type="number" id="service-price" min="0" value="400" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
+                    </div>
+
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2 rounded-lg text-sm transition cursor-pointer">
+                        <i class="fa-solid fa-folder-plus mr-1.5"></i> Зберегти в базу даних
+                    </button>
+                </form>
+            </div>
+
+            <div class="lg:col-span-2 space-y-4">
+                <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-database text-cyan-400"></i> Вся номенклатура (Товари та Ремонти)
+                </h2>
+                <div id="stock-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+            </div>
+        </section>
+
+        <section id="tab-history" style="display: none;" class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl space-y-6">
+            <div class="border-b border-slate-700 pb-4 flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-receipt text-cyan-400"></i> Фінансова книга
+                </h2>
+                <button onclick="clearAllOrders()" class="text-xs text-rose-400 border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 rounded-lg hover:bg-rose-500/20 transition cursor-pointer">
+                    Очистити фінанси
+                </button>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-700">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-950 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-700">
+                            <th class="p-4">Категорія</th>
+                            <th class="p-4">Опис позиції / Клієнт</th>
+                            <th class="p-4 text-center">Собівартість</th>
+                            <th class="p-4 text-center">Отримано</th>
+                            <th class="p-4 text-center text-cyan-400">Чистий прибуток</th>
+                            <th class="p-4 text-center">Скасувати</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-list" class="divide-y divide-slate-700/50 text-sm"></tbody>
+                </table>
+            </div>
+            <div id="empty-state" class="text-center py-12 text-slate-500" style="display: none;">Історія порожня.</div>
+        </section>
+
+    </main>
+
+    <div id="receipt-print-zone">
+        <div class="text-center receipt-title">STATUS MOBILE</div>
+        <div class="text-center" style="font-size: 10px;">Сервісний центр / Магазин</div>
+        <div class="divider">--------------------------------</div>
+        <div><b>Дата:</b> <span id="p-date"></span></div>
+        <div><b>Тип:</b> <span id="p-type"></span></div>
+        <div class="divider">--------------------------------</div>
+        <div class="bold" id="p-title" style="font-size: 13px; margin: 5px 0;">Назва товару</div>
+        <div id="p-desc" style="font-size: 11px; color: #333;">Деталі</div>
+        <div class="divider">--------------------------------</div>
+        <div class="text-right receipt-total">РАЗОМ: <span id="p-total"></span> ₴</div>
+        <div id="p-cash-row" style="display:none;" class="text-right">Отримано: <span id="p-cash"></span> ₴</div>
+        <div id="p-change-row" style="display:none;" class="text-right">Решта: <span id="p-change"></span> ₴</div>
+        <div class="divider">--------------------------------</div>
+        <div class="text-center mt-2" style="font-size: 10px; font-weight: bold;">Дякуємо за довіру!</div>
+        <div class="text-center" style="font-size: 9px;">м. Біла Церква</div>
+    </div>
+
+    <script>
+        const placeholderImg = "https://images.unsplash.com/photo-1585647347483-22b66260dfff?auto=format&fit=crop&w=300&q=80";
+
+        // КОНФІГУРАЦІЯ FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyDGUjNgWj5iSFGwRE1icvgeYnyG9uBdKrI",
+            authDomain: "phone-repair-8b46a.firebaseapp.com",
+            databaseURL: "https://phone-repair-8b46a-default-rtdb.firebaseio.com",
+            projectId: "phone-repair-8b46a",
+            storageBucket: "phone-repair-8b46a.firebasestorage.app",
+            messagingSenderId: "569046611408",
+            appId: "1:569046611408:web:b4f61921103e164529b5d5",
+            measurementId: "G-33XZWBW1CD"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let stock = [];
+        let orders = [];
+        let selectedItem = null;
+
+        db.ref().on('value', (snapshot) => {
+            const data = snapshot.val() || {};
+            stock = data.stock || [];
+            orders = data.orders || [];
+
+            const loader = document.getElementById('cloud-loader');
+            if(loader) loader.style.display = 'none';
+            document.getElementById('tab-main').style.display = 'grid';
+
+            updateBadges();
+            updateStats();
+            liveSearch();
+            renderStockPage();
+            renderOrdersPage();
+        });
+
+        function switchTab(tabName) {
+            const tabs = { 
+                main: document.getElementById('tab-main'), 
+                stock: document.getElementById('tab-stock'), 
+                history: document.getElementById('tab-history') 
+            };
+            const buttons = { 
+                main: document.getElementById('btn-main'), 
+                stock: document.getElementById('btn-stock'), 
+                history: document.getElementById('btn-history') 
+            };
+
+            Object.keys(tabs).forEach(key => {
+                if(tabs[key]) {
+                    tabs[key].style.display = (key === tabName) ? (key === 'history' ? 'block' : 'grid') : 'none';
+                }
+                if(buttons[key]) {
+                    buttons[key].className = (key === tabName) 
+                        ? "flex-1 sm:flex-none px-5 py-2 rounded-lg text-sm font-medium transition-all bg-cyan-600 text-white shadow-lg whitespace-nowrap cursor-pointer"
+                        : "flex-1 sm:flex-none px-5 py-2 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white whitespace-nowrap cursor-pointer";
+                }
+            });
+
+            if(tabName === 'main') { closeCheckout(); liveSearch(); }
+            if(tabName === 'stock') renderStockPage();
+            if(tabName === 'history') renderOrdersPage();
+        }
+
+        function liveSearch() {
+            const query = document.getElementById('main-search').value.toLowerCase().trim();
+            const resultsContainer = document.getElementById('search-results');
+            if(!resultsContainer) return;
+            resultsContainer.innerHTML = '';
+
+            if (query === '') {
+                resultsContainer.innerHTML = `<p class="text-xs text-slate-500 sm:col-span-2">Введіть назву товару чи ремонту для початку...</p>`;
+                return;
+            }
+
+            const filtered = stock.filter(item => item && item.name && item.name.toLowerCase().includes(query));
+
+            if (filtered.length === 0) {
+                resultsContainer.innerHTML = `<p class="text-xs text-rose-400 sm:col-span-2">Нічого не знайдено.</p>`;
+                return;
+            }
+
+            filtered.forEach(item => {
+                const isService = item.type === 'service';
+                const isOut = !isService && item.qty === 0;
+                const div = document.createElement('div');
+                
+                div.className = `p-3 rounded-xl border transition cursor-pointer select-none text-left flex justify-between items-center bg-slate-950 ${isOut ? 'border-rose-500/20 opacity-40 pointer-events-none' : 'border-slate-800 hover:border-cyan-500'}`;
+                div.onclick = () => openCheckout(item);
+
+                let imgHtml = '';
+                if(isService) {
+                    if (item.img) {
+                        imgHtml = `<img src="${item.img}" onerror="this.src='${placeholderImg}'" class="w-10 h-10 object-cover rounded-lg bg-slate-900 border border-slate-700 shrink-0">`;
+                    } else {
+                        imgHtml = `<div class="w-10 h-10 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 text-xs shrink-0"><i class="fa-solid fa-screwdriver-wrench"></i></div>`;
+                    }
+                } else {
+                    const src = item.img ? item.img : placeholderImg;
+                    imgHtml = `<img src="${src}" onerror="this.src='${placeholderImg}'" class="w-10 h-10 object-cover rounded-lg bg-slate-900 border border-slate-700 shrink-0">`;
+                }
+
+                div.innerHTML = `
+                    <div class="flex items-center gap-3 min-w-0">
+                        ${imgHtml}
+                        <div class="min-w-0">
+                            <span class="text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${isService ? 'bg-cyan-500/10 text-cyan-400' : 'bg-amber-500/10 text-amber-400'}">
+                                ${isService ? 'Ремонт' : 'Товар'}
+                            </span>
+                            <h4 class="font-semibold text-white text-xs truncate mt-0.5">${item.name}</h4>
+                        </div>
+                    </div>
+                    <div class="text-right shrink-0 ml-2">
+                        <p class="text-xs font-bold ${isService ? 'text-cyan-400' : 'text-emerald-400'}">${item.price} ₴</p>
+                        <p class="text-[10px] text-slate-400">${isService ? 'робота' : `${item.qty} шт`}</p>
+                    </div>
+                `;
+                resultsContainer.appendChild(div);
+            });
+        }
+
+        function openCheckout(item) {
+            selectedItem = item;
+            document.getElementById('checkout-zone').style.display = 'block';
+            document.getElementById('checkout-title').innerText = item.name;
+
+            const badge = document.getElementById('checkout-badge');
+            const repairForm = document.getElementById('checkout-repair-form');
+            const productForm = document.getElementById('checkout-product-form');
+            const imgEl = document.getElementById('checkout-img');
+            const iconEl = document.getElementById('checkout-icon-placeholder');
+
+            if (item.type === 'service') {
+                if(item.img) {
+                    imgEl.src = item.img;
+                    imgEl.style.display = 'block';
+                    iconEl.style.display = 'none';
+                } else {
+                    imgEl.style.display = 'none';
+                    iconEl.style.display = 'flex';
+                }
+                badge.className = "text-xs px-2 py-0.5 rounded font-bold uppercase bg-cyan-500/20 text-cyan-400";
+                badge.innerText = "Ремонт";
+                repairForm.style.display = 'block';
+                productForm.style.display = 'none';
+                
+                document.getElementById('c-repair-work').value = item.price;
+                recalcCheckoutRepair();
+            } else {
+                imgEl.src = item.img ? item.img : placeholderImg;
+                imgEl.style.display = 'block';
+                iconEl.style.display = 'none';
+                badge.className = "text-xs px-2 py-0.5 rounded font-bold uppercase bg-amber-500/20 text-amber-400";
+                badge.innerText = "Товар";
+                repairForm.style.display = 'none';
+                productForm.style.display = 'block';
+
+                document.getElementById('c-prod-price-lbl').innerText = item.price;
+                document.getElementById('c-prod-qty-lbl').innerText = item.qty;
+                document.getElementById('c-prod-cash').value = '';
+                document.getElementById('c-prod-change').innerText = '0';
+            }
+            document.getElementById('checkout-zone').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function closeCheckout() {
+            document.getElementById('checkout-zone').style.display = 'none';
+            selectedItem = null;
+        }
+
+        function recalcCheckoutRepair() {
+            if(!selectedItem) return;
+            const cost = parseFloat(document.getElementById('c-repair-cost').value) || 0;
+            const markup = parseFloat(document.getElementById('c-repair-markup').value) || 0;
+            const work = selectedItem.price;
+
+            const totalClient = Math.round((cost + (cost * (markup / 100))) + work);
+            const totalProfit = Math.round(totalClient - cost);
+
+            document.getElementById('c-rep-total').innerText = totalClient;
+            document.getElementById('c-rep-profit').innerText = totalProfit;
+        }
+
+        function recalcProductChange() {
+            if(!selectedItem) return;
+            const cash = parseFloat(document.getElementById('c-prod-cash').value) || 0;
+            const price = selectedItem.price;
+            const change = cash - price;
+            document.getElementById('c-prod-change').innerText = change > 0 ? Math.round(change) : 0;
+        }
+
+        // ДРУК ЧЕКА (ФУНКЦІЯ)
+        function printReceipt(type, title, desc, total, cash = null, change = null) {
+            const now = new Date();
+            document.getElementById('p-date').innerText = now.toLocaleString('uk-UA');
+            document.getElementById('p-type').innerText = type;
+            document.getElementById('p-title').innerText = title;
+            document.getElementById('p-desc').innerText = desc;
+            document.getElementById('p-total').innerText = total;
+
+            const cashRow = document.getElementById('p-cash-row');
+            const changeRow = document.getElementById('p-change-row');
+
+            if (cash !== null && cash > 0) {
+                document.getElementById('p-cash').innerText = Math.round(cash);
+                document.getElementById('p-change').innerText = Math.round(change);
+                cashRow.style.display = 'block';
+                changeRow.style.display = 'block';
+            } else {
+                cashRow.style.display = 'none';
+                changeRow.style.display = 'none';
+            }
+
+            // Запускаємо вікно друку браузера
+            setTimeout(() => {
+                window.print();
+            }, 300);
+        }
+
+        function processRepairOrder(event) {
+            event.preventDefault();
+            if(!selectedItem) return;
+
+            const clientName = document.getElementById('c-repair-client').value;
+            const clientPhone = document.getElementById('c-repair-phone').value;
+            const cost = parseFloat(document.getElementById('c-repair-cost').value) || 0;
+            const work = selectedItem.price;
+            const markup = parseFloat(document.getElementById('c-repair-markup').value) || 0;
+            
+            const totalClient = Math.round((cost + (cost * (markup / 100))) + work);
+            const totalProfit = Math.round(totalClient - cost);
+            const orderDesc = `Клієнт: ${clientName} (${clientPhone})`;
+
+            orders.push({
+                id: Date.now(),
+                type: 'Ремонт',
+                title: selectedItem.name,
+                desc: orderDesc,
+                cost,
+                totalClient,
+                totalProfit
+            });
+
+            pushToCloud();
+            
+            // Друк чека для ремонту
+            printReceipt('Ремонт / Послуга', selectedItem.name, orderDesc, totalClient);
+
+            document.getElementById('c-repair-client').value = '';
+            document.getElementById('c-repair-phone').value = '';
+            document.getElementById('c-repair-cost').value = '0';
+            closeCheckout();
+            document.getElementById('main-search').value = '';
+            switchTab('history');
+        }
+
+        function processProductOrder(event) {
+            event.preventDefault();
+            if(!selectedItem || selectedItem.qty <= 0) return;
+
+            const cash = parseFloat(document.getElementById('c-prod-cash').value) || 0;
+            const change = cash - selectedItem.price;
+
+            selectedItem.qty -= 1;
+
+            orders.push({
+                id: Date.now(),
+                type: 'Продаж',
+                title: 'Товар',
+                desc: selectedItem.name,
+                cost: selectedItem.cost,
+                totalClient: selectedItem.price,
+                totalProfit: selectedItem.price - selectedItem.cost
+            });
+
+            pushToCloud();
+
+            // Друк чека для товару з рештою
+            printReceipt('Продаж товару', selectedItem.name, 'Категорія: Аксесуари/Запчастини', selectedItem.price, cash, change > 0 ? change : 0);
+
+            closeCheckout();
+            document.getElementById('main-search').value = '';
+            switchTab('history');
+        }
+
+        function adjustStockForm() {
+            const type = document.getElementById('prod-type').value;
+            const pFields = document.getElementById('stock-fields-product');
+            const sFields = document.getElementById('stock-fields-service');
+
+            if (type === 'product') {
+                pFields.style.display = 'grid';
+                sFields.style.display = 'none';
+            } else {
+                pFields.style.display = 'none';
+                sFields.style.display = 'block';
+            }
+        }
+
+        function addStockItem(event) {
+            event.preventDefault();
+            const type = document.getElementById('prod-type').value;
+            const name = document.getElementById('prod-name').value;
+            let img = document.getElementById('prod-img').value.trim();
+
+            if (type === 'product') {
+                const cost = parseFloat(document.getElementById('prod-cost').value) || 0;
+                const price = parseFloat(document.getElementById('prod-price').value) || 0;
+                const qty = parseInt(document.getElementById('prod-qty').value) || 0;
+                stock.push({ id: Date.now(), type, name, img, cost, price, qty });
+            } else {
+                const price = parseFloat(document.getElementById('service-price').value) || 0;
+                stock.push({ id: Date.now(), type, name, img, price });
+            }
+
+            pushToCloud();
+            document.getElementById('stock-form').reset();
+            adjustStockForm();
+        }
+
+        function changeQty(id, amount) {
+            const item = stock.find(p => p.id === id);
+            if (!item || item.type === 'service') return;
+            item.qty += amount;
+            if (item.qty < 0) item.qty = 0;
+            pushToCloud();
+        }
+
+        function deleteStockItem(id) {
+            if(confirm("Видалити позицію з хмарної бази?")) {
+                stock = stock.filter(p => p.id !== id);
+                pushToCloud();
+            }
+        }
+
+        function renderStockPage() {
+            const container = document.getElementById('stock-grid');
+            if(!container) return;
+            container.innerHTML = '';
+
+            stock.forEach(item => {
+                if(!item) return;
+                const card = document.createElement('div');
+                const isService = item.type === 'service';
+                card.className = "bg-slate-800 border border-slate-700 p-4 rounded-xl flex gap-4 items-center relative shadow-md text-left";
+                
+                let imgHtml = '';
+                if(isService) {
+                    if (item.img) {
+                        imgHtml = `<img src="${item.img}" onerror="this.src='${placeholderImg}'" class="w-14 h-14 object-cover rounded-lg bg-slate-900 border border-slate-700 shrink-0">`;
+                    } else {
+                        imgHtml = `<div class="w-14 h-14 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 text-lg shrink-0"><i class="fa-solid fa-screwdriver-wrench"></i></div>`;
+                    }
+                } else {
+                    const src = item.img ? item.img : placeholderImg;
+                    imgHtml = `<img src="${src}" onerror="this.src='${placeholderImg}'" class="w-14 h-14 object-cover rounded-lg bg-slate-900 border border-slate-700 shrink-0">`;
+                }
+
+                card.innerHTML = `
+                    ${imgHtml}
+                    <div class="min-w-0 flex-1 pr-6">
+                        <span class="text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${isService ? 'bg-cyan-500/10 text-cyan-400' : 'bg-amber-500/10 text-amber-400'}">
+                            ${isService ? 'Ремонт' : 'Товар'}
+                        </span>
+                        <h4 class="font-semibold text-white truncate text-sm mt-0.5">${item.name}</h4>
+                        <p class="text-xs text-slate-400 mt-0.5">
+                            ${isService ? `Робота: <span class="text-cyan-400 font-bold">${item.price} ₴</span>` : `Продаж: <span class="text-emerald-400 font-bold">${item.price} ₴</span> | Закуп: ${item.cost} ₴`}
+                        </p>
+                    </div>
+                    <div class="shrink-0">
+                        ${isService ? '' : `
+                            <div class="flex items-center bg-slate-950 rounded-lg border border-slate-700 overflow-hidden text-xs">
+                                <button onclick="changeQty(${item.id}, -1)" class="px-2 py-1 text-slate-400 hover:bg-slate-800 transition cursor-pointer">-</button>
+                                <span class="px-2.5 font-bold text-slate-200">${item.qty} шт</span>
+                                <button onclick="changeQty(${item.id}, 1)" class="px-2 py-1 text-slate-400 hover:bg-slate-800 transition cursor-pointer">+</button>
+                            </div>
+                        `}
+                    </div>
+                    <button onclick="deleteStockItem(${item.id})" class="absolute top-2 right-2 text-slate-600 hover:text-rose-400 text-xs cursor-pointer">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderOrdersPage() {
+            const container = document.getElementById('orders-list');
+            const empty = document.getElementById('empty-state');
+            if(!container || !empty) return;
+            container.innerHTML = '';
+
+            if(orders.length === 0) {
+                empty.style.display = 'block';
+                return;
+            } else {
+                empty.style.display = 'none';
+            }
+
+            orders.forEach(order => {
+                if(!order) return;
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-700/20 transition border-b border-slate-700/50";
+                const badgeColor = order.type === 'Ремонт' ? 'bg-cyan-500/10 text-cyan-400' : 'bg-amber-500/10 text-amber-400';
+
+                tr.innerHTML = `
+                    <td class="p-4"><span class="text-xs px-2 py-0.5 rounded font-medium ${badgeColor}">${order.type}</span></td>
+                    <td class="p-4"><p class="font-medium text-white text-sm">${order.title}</p><p class="text-xs text-slate-400">${order.desc}</p></td>
+                    <td class="p-4 text-center text-slate-400">${order.cost} ₴</td>
+                    <td class="p-4 text-center text-emerald-400 font-semibold">${order.totalClient} ₴</td>
+                    <td class="p-4 text-center text-cyan-400 font-bold bg-cyan-500/5">${order.totalProfit} ₴</td>
+                    <td class="p-4 text-center">
+                        <button onclick="deleteOrder(${order.id})" class="text-slate-500 hover:text-rose-400 cursor-pointer">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </td>
+                `;
+                container.prepend(tr);
+            });
+        }
+
+        function deleteOrder(id) {
+            if(confirm("Скасувати цю операцію в хмарі?")) {
+                orders = orders.filter(o => o.id !== id);
+                pushToCloud();
+            }
+        }
+
+        function clearAllOrders() {
+            if(confirm("Очистити всю фінансову історію майстерні?")) {
+                orders = [];
+                pushToCloud();
+            }
+        }
+
+        function updateStats() {
+            const totalTurnover = orders.reduce((sum, o) => sum + (o.totalClient || 0), 0);
+            const totalProfit = orders.reduce((sum, o) => sum + (o.totalProfit || 0), 0);
+            
+            const tEl = document.getElementById('stats-turnover');
+            const pEl = document.getElementById('stats-profit');
+            if(tEl) tEl.innerText = totalTurnover;
+            if(pEl) pEl.innerText = totalProfit;
+        }
+
+        function updateBadges() {
+            const cBadge = document.getElementById('count-badge');
+            const sBadge = document.getElementById('stock-badge');
+            if(cBadge) cBadge.innerText = orders.length;
+            if(sBadge) sBadge.innerText = stock.reduce((acc, obj) => acc + ((obj && obj.qty) || 0), 0);
+        }
+
+        function pushToCloud() {
+            db.ref().set({
+                stock: stock,
+                orders: orders
+            }).catch(e => console.error("Помилка відправки в хмару:", e));
+        }
+    </script>
+</body>
+</html>
