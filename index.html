@@ -10,50 +10,50 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-   <style>
-    /* На екрані монітора чек взагалі прихований */
-    #receipt-print-zone { display: none; }
+    <style>
+        /* На екрані монітора чек взагалі прихований */
+        #receipt-print-zone { display: none; }
 
-    /* НАЛАШТУВАННЯ ДЛЯ РЕАЛЬНОГО ДРУКУ */
-    @media print {
-        /* Приховуємо конкретно шапку та головний екран сайту, не чіпаючи начинку чека */
-        header, main, button, form { display: none !important; } 
-        
-        /* Робимо зону чека видимою */
-        #receipt-print-zone { 
-            display: block !important; 
-            width: 58mm; 
-            max-width: 58mm;
-            color: #000 !important;
-            background: #fff !important;
-            font-family: 'Courier New', Courier, monospace !important;
-            font-size: 13px;
-            line-height: 1.3;
-            padding: 0;
-            margin: 0;
+        /* НАЛАШТУВАННЯ ДЛЯ РЕАЛЬНОГО ДРУКУ */
+        @media print {
+            /* Приховуємо конкретно шапку та головний екран сайту, не чіпаючи начинку чека */
+            header, main, button, form, section, div:not(#receipt-print-zone):not(#receipt-print-zone *) { display: none !important; } 
+            
+            /* Робимо зону чека видимою */
+            #receipt-print-zone { 
+                display: block !important; 
+                width: 58mm; 
+                max-width: 58mm;
+                color: #000 !important;
+                background: #fff !important;
+                font-family: 'Courier New', Courier, monospace !important;
+                font-size: 13px;
+                line-height: 1.3;
+                padding: 0;
+                margin: 0;
+            }
+            /* Гарантуємо, що всі тексти, лінії та абзаци всередині чека ПРАЦЮЮТЬ */
+            #receipt-print-zone div, 
+            #receipt-print-zone p, 
+            #receipt-print-zone span, 
+            #receipt-print-zone b { 
+                display: block !important; 
+            }
+            /* Спеціальний фікс для рядків, де назва зліва, а ціна справа */
+            #receipt-print-zone .flex-row {
+                display: flex !important;
+                justify-content: space-between !important;
+                flex-direction: row !important;
+            }
+            /* Стилі оформлення */
+            .text-center { text-align: center !important; }
+            .text-right { text-align: right !important; }
+            .bold { font-weight: bold !important; }
+            .receipt-header { font-size: 16px; font-weight: bold; letter-spacing: 1px; margin-bottom: 2px; text-transform: uppercase; }
+            .divider { margin: 4px 0; border-bottom: 1px dashed #000 !important; display: block !important; height: 1px; }
+            .receipt-total { font-size: 15px; font-weight: bold; margin-top: 4px; }
         }
-        /* Гарантуємо, що всі тексти, лінії та абзаци всередині чека ПРАЦЮЮТЬ */
-        #receipt-print-zone div, 
-        #receipt-print-zone p, 
-        #receipt-print-zone span, 
-        #receipt-print-zone b { 
-            display: block !important; 
-        }
-        /* Спеціальний фікс для рядків, де назва зліва, а ціна справа */
-        #receipt-print-zone .flex-row {
-            display: flex !important;
-            justify-content: space-between !important;
-            flex-direction: row !important;
-        }
-        /* Стилі оформлення */
-        .text-center { text-align: center !important; }
-        .text-right { text-align: right !important; }
-        .bold { font-weight: bold !important; }
-        .receipt-header { font-size: 16px; font-weight: bold; letter-spacing: 1px; margin-bottom: 2px; text-transform: uppercase; }
-        .divider { margin: 4px 0; border-bottom: 1px dashed #000 !important; display: block !important; height: 1px; }
-        .receipt-total { font-size: 15px; font-weight: bold; margin-top: 4px; }
-    }
-</style>
+    </style>
 </head>
 <body class="bg-slate-900 text-slate-100 font-sans min-h-screen">
 
@@ -97,7 +97,7 @@
                     <label class="block text-sm font-medium text-slate-300">Швидкий пошук товару чи послуги ремонту:</label>
                     <div class="relative">
                         <i class="fa-solid fa-magnifying-glass absolute left-4 top-4 text-slate-400 text-lg"></i>
-                        <input type="text" id="main-search" oninput="liveSearch()" placeholder="Почніть вводити: Чохол, Скло, Заміна екрану..." class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-12 pr-4 py-3.5 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition text-lg">
+                        <input type="text" id="main-search" oninput="liveSearch()" placeholder="Почніть вводить: Чохол, Скло, Заміна екрану..." class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-12 pr-4 py-3.5 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition text-lg">
                     </div>
                     
                     <div id="search-results" class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2"></div>
@@ -294,54 +294,51 @@
 
     </main>
 
-    <!-- ================= ЗОНА ДРУКУ (ГАРНИЙ ЧЕК) ================= -->
-<div id="receipt-print-zone">
-    <div class="text-center receipt-header">STATUS MOBILE</div>
-    <div class="text-center" style="font-size: 11px;">Ремонт та аксесуари</div>
-    <div class="text-center" style="font-size: 10px;">м. Біла Церква</div>
-    
-    <div class="divider"></div>
-    
-    <div class="flex-row">
-        <span><b>Дата:</b></span>
-        <span id="p-date" class="text-right">24.06.2026, 11:00</span>
-    </div>
-    <div class="flex-row">
-        <span><b>Чек:</b></span>
-        <span id="p-type" class="text-right">Продаж</span>
-    </div>
-    
-    <div class="divider"></div>
-    
-    <!-- Назва товару/ремонту -->
-    <div class="bold" id="p-title" style="font-size: 14px; margin: 3px 0; min-height: 16px;">Назва позиції</div>
-    <!-- Опис клієнта або категорія -->
-    <div id="p-desc" style="font-size: 11px; color: #000; font-style: italic;">Деталі операції</div>
-    
-    <div class="divider"></div>
-    
-    <!-- Фінанси -->
-    <div class="flex-row receipt-total">
-        <span>ЗАГАЛОМ:</span>
-        <span><span id="p-total">0</span> ₴</span>
-    </div>
-    
-    <div id="p-cash-row" style="display:none;">
-        <div class="flex-row" style="font-size: 12px; margin-top: 2px;">
-            <span>Отримано:</span>
-            <span><span id="p-cash">0</span> ₴</span>
+    <div id="receipt-print-zone">
+        <div class="text-center receipt-header">STATUS MOBILE</div>
+        <div class="text-center" style="font-size: 11px;">Ремонт та аксесуари</div>
+        <div class="text-center" style="font-size: 10px;">м. Біла Церква</div>
+        
+        <div class="divider"></div>
+        
+        <div class="flex-row">
+            <span><b>Дата:</b></span>
+            <span id="p-date" class="text-right">24.06.2026, 11:00</span>
         </div>
-        <div class="flex-row" style="font-size: 12px; font-weight: bold;">
-            <span>Решта:</span>
-            <span><span id="p-change">0</span> ₴</span>
+        <div class="flex-row">
+            <span><b>Чек:</b></span>
+            <span id="p-type" class="text-right">Продаж</span>
         </div>
+        
+        <div class="divider"></div>
+        
+        <div class="bold" id="p-title" style="font-size: 14px; margin: 3px 0; min-height: 16px;">Назва позиції</div>
+        <div id="p-desc" style="font-size: 11px; color: #000; font-style: italic;">Деталі операції</div>
+        
+        <div class="divider"></div>
+        
+        <div class="flex-row receipt-total">
+            <span>ЗАГАЛОМ:</span>
+            <span><span id="p-total">0</span> ₴</span>
+        </div>
+        
+        <div id="p-cash-row" style="display:none;">
+            <div class="flex-row" style="font-size: 12px; margin-top: 2px;">
+                <span>Отримано:</span>
+                <span><span id="p-cash">0</span> ₴</span>
+            </div>
+            <div class="flex-row" style="font-size: 12px; font-weight: bold;">
+                <span>Решта:</span>
+                <span><span id="p-change">0</span> ₴</span>
+            </div>
+        </div>
+        
+        <div class="divider"></div>
+        
+        <div class="text-center" style="font-size: 11px; font-weight: bold; margin-top: 5px;">ДЯКУЄМО ЗА ВІЗИТ!</div>
+        <div class="text-center" style="font-size: 10px; letter-spacing: 2px;">*** ТОВАРНИЙ ЧЕК ***</div>
     </div>
-    
-    <div class="divider"></div>
-    
-    <div class="text-center" style="font-size: 11px; font-weight: bold; margin-top: 5px;">ДЯКУЄМО ЗА ВІЗИТ!</div>
-    <div class="text-center" style="font-size: 10px; letter-spacing: 2px;">*** ТОВАРНИЙ ЧЕК ***</div>
-</div>
+
     <script>
         const placeholderImg = "https://images.unsplash.com/photo-1585647347483-22b66260dfff?auto=format&fit=crop&w=300&q=80";
 
@@ -545,262 +542,243 @@
             document.getElementById('p-total').innerText = total;
 
             const cashRow = document.getElementById('p-cash-row');
-            const changeRow = document.getElementById('p-change-row');
-
             if (cash !== null && cash > 0) {
-                document.getElementById('p-cash').innerText = Math.round(cash);
-                document.getElementById('p-change').innerText = Math.round(change);
+                document.getElementById('p-cash').innerText = cash;
+                document.getElementById('p-change').innerText = change >= 0 ? change : 0;
                 cashRow.style.display = 'block';
-                changeRow.style.display = 'block';
             } else {
                 cashRow.style.display = 'none';
-                changeRow.style.display = 'none';
             }
 
-            // Запускаємо вікно друку браузера
-            setTimeout(() => {
-                window.print();
-            }, 300);
+            window.print();
         }
 
+        // ОБРОБКА ЗАКРИТТЯ РЕМОНТУ
         function processRepairOrder(event) {
             event.preventDefault();
-            if(!selectedItem) return;
+            if (!selectedItem) return;
 
-            const clientName = document.getElementById('c-repair-client').value;
-            const clientPhone = document.getElementById('c-repair-phone').value;
+            const clientName = document.getElementById('c-repair-client').value.trim();
+            const clientPhone = document.getElementById('c-repair-phone').value.trim();
             const cost = parseFloat(document.getElementById('c-repair-cost').value) || 0;
-            const work = selectedItem.price;
-            const markup = parseFloat(document.getElementById('c-repair-markup').value) || 0;
-            
-            const totalClient = Math.round((cost + (cost * (markup / 100))) + work);
-            const totalProfit = Math.round(totalClient - cost);
-            const orderDesc = `Клієнт: ${clientName} (${clientPhone})`;
+            const total = parseFloat(document.getElementById('c-rep-total').innerText) || 0;
+            const profit = parseFloat(document.getElementById('c-rep-profit').innerText) || 0;
 
-            orders.push({
+            const newOrder = {
                 id: Date.now(),
-                type: 'Ремонт',
+                type: 'service',
                 title: selectedItem.name,
-                desc: orderDesc,
-                cost,
-                totalClient,
-                totalProfit
-            });
+                desc: `Клієнт: ${clientName} (${clientPhone})`,
+                cost: cost,
+                total: total,
+                profit: profit,
+                date: new Date().toLocaleString('uk-UA')
+            };
 
-            pushToCloud();
-            
-            // Друк чека для ремонту
-            printReceipt('Ремонт / Послуга', selectedItem.name, orderDesc, totalClient);
+            orders.push(newOrder);
+            db.ref('orders').set(orders);
 
-            document.getElementById('c-repair-client').value = '';
-            document.getElementById('c-repair-phone').value = '';
-            document.getElementById('c-repair-cost').value = '0';
+            printReceipt('Ремонт', selectedItem.name, `Клієнт: ${clientName} | ${clientPhone}`, total);
             closeCheckout();
-            document.getElementById('main-search').value = '';
-            switchTab('history');
+            document.getElementById('checkout-repair-form').reset();
         }
 
+        // ОБРОБКА ПРОДАЖУ ТОВАРУ
         function processProductOrder(event) {
             event.preventDefault();
-            if(!selectedItem || selectedItem.qty <= 0) return;
+            if (!selectedItem) return;
 
             const cash = parseFloat(document.getElementById('c-prod-cash').value) || 0;
-            const change = cash - selectedItem.price;
+            const change = parseFloat(document.getElementById('c-prod-change').innerText) || 0;
+            const total = selectedItem.price;
+            const cost = selectedItem.cost || 0;
+            const profit = total - cost;
 
-            selectedItem.qty -= 1;
+            // Зменшуємо кількість товару на складі
+            const itemIndex = stock.findIndex(i => i && i.id === selectedItem.id);
+            if (itemIndex !== -1 && stock[itemIndex].qty > 0) {
+                stock[itemIndex].qty -= 1;
+                db.ref('stock').set(stock);
+            }
 
-            orders.push({
+            const newOrder = {
                 id: Date.now(),
-                type: 'Продаж',
-                title: 'Товар',
-                desc: selectedItem.name,
-                cost: selectedItem.cost,
-                totalClient: selectedItem.price,
-                totalProfit: selectedItem.price - selectedItem.cost
-            });
+                type: 'product',
+                title: selectedItem.name,
+                desc: 'Категорія: Аксесуари/Запчастини',
+                cost: cost,
+                total: total,
+                profit: profit,
+                date: new Date().toLocaleString('uk-UA')
+            };
 
-            pushToCloud();
+            orders.push(newOrder);
+            db.ref('orders').set(orders);
 
-            // Друк чека для товару з рештою
-            printReceipt('Продаж товару', selectedItem.name, 'Категорія: Аксесуари/Запчастини', selectedItem.price, cash, change > 0 ? change : 0);
-
+            printReceipt('Продаж', selectedItem.name, 'Категорія: Аксесуари', total, cash, change);
             closeCheckout();
-            document.getElementById('main-search').value = '';
-            switchTab('history');
+            document.getElementById('checkout-product-form').reset();
         }
 
+        // АДМІНІСТРУВАННЯ СКЛАДУ
         function adjustStockForm() {
             const type = document.getElementById('prod-type').value;
-            const pFields = document.getElementById('stock-fields-product');
-            const sFields = document.getElementById('stock-fields-service');
-
-            if (type === 'product') {
-                pFields.style.display = 'grid';
-                sFields.style.display = 'none';
-            } else {
-                pFields.style.display = 'none';
-                sFields.style.display = 'block';
-            }
+            document.getElementById('stock-fields-product').style.display = type === 'product' ? 'grid' : 'none';
+            document.getElementById('stock-fields-service').style.display = type === 'service' ? 'block' : 'none';
         }
 
         function addStockItem(event) {
             event.preventDefault();
             const type = document.getElementById('prod-type').value;
-            const name = document.getElementById('prod-name').value;
-            let img = document.getElementById('prod-img').value.trim();
+            const name = document.getElementById('prod-name').value.trim();
+            const img = document.getElementById('prod-img').value.trim() || null;
+
+            let newItem = { id: Date.now(), type: type, name: name, img: img };
 
             if (type === 'product') {
-                const cost = parseFloat(document.getElementById('prod-cost').value) || 0;
-                const price = parseFloat(document.getElementById('prod-price').value) || 0;
-                const qty = parseInt(document.getElementById('prod-qty').value) || 0;
-                stock.push({ id: Date.now(), type, name, img, cost, price, qty });
+                newItem.cost = parseFloat(document.getElementById('prod-cost').value) || 0;
+                newItem.price = parseFloat(document.getElementById('prod-price').value) || 0;
+                newItem.qty = parseInt(document.getElementById('prod-qty').value) || 0;
             } else {
-                const price = parseFloat(document.getElementById('service-price').value) || 0;
-                stock.push({ id: Date.now(), type, name, img, price });
+                newItem.cost = 0;
+                newItem.price = parseFloat(document.getElementById('service-price').value) || 0;
+                newItem.qty = 1;
             }
 
-            pushToCloud();
+            stock.push(newItem);
+            db.ref('stock').set(stock);
             document.getElementById('stock-form').reset();
             adjustStockForm();
         }
 
-        function changeQty(id, amount) {
-            const item = stock.find(p => p.id === id);
-            if (!item || item.type === 'service') return;
-            item.qty += amount;
-            if (item.qty < 0) item.qty = 0;
-            pushToCloud();
-        }
-
         function deleteStockItem(id) {
-            if(confirm("Видалити позицію з хмарної бази?")) {
-                stock = stock.filter(p => p.id !== id);
-                pushToCloud();
+            if(confirm('Видалити цю позицію з номенклатури?')) {
+                stock = stock.filter(item => item && item.id !== id);
+                db.ref('stock').set(stock);
             }
         }
 
-        function renderStockPage() {
-            const container = document.getElementById('stock-grid');
-            if(!container) return;
-            container.innerHTML = '';
-
-            stock.forEach(item => {
-                if(!item) return;
-                const card = document.createElement('div');
-                const isService = item.type === 'service';
-                card.className = "bg-slate-800 border border-slate-700 p-4 rounded-xl flex gap-4 items-center relative shadow-md text-left";
-                
-                let imgHtml = '';
-                if(isService) {
-                    if (item.img) {
-                        imgHtml = `<img src="${item.img}" onerror="this.src='${placeholderImg}'" class="w-14 h-14 object-cover rounded-lg bg-slate-900 border border-slate-700 shrink-0">`;
-                    } else {
-                        imgHtml = `<div class="w-14 h-14 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 text-lg shrink-0"><i class="fa-solid fa-screwdriver-wrench"></i></div>`;
+        function cancelOrder(id) {
+            if(confirm('Скасувати цю операцію та повернути кошти?')) {
+                const order = orders.find(o => o.id === id);
+                // Якщо скасовуємо продаж товару — повертаємо 1 шт на склад
+                if (order && order.type === 'product') {
+                    const itemIndex = stock.findIndex(i => i && i.name === order.title);
+                    if (itemIndex !== -1) {
+                        stock[itemIndex].qty += 1;
+                        db.ref('stock').set(stock);
                     }
-                } else {
-                    const src = item.img ? item.img : placeholderImg;
-                    imgHtml = `<img src="${src}" onerror="this.src='${placeholderImg}'" class="w-14 h-14 object-cover rounded-lg bg-slate-900 border border-slate-700 shrink-0">`;
                 }
-
-                card.innerHTML = `
-                    ${imgHtml}
-                    <div class="min-w-0 flex-1 pr-6">
-                        <span class="text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${isService ? 'bg-cyan-500/10 text-cyan-400' : 'bg-amber-500/10 text-amber-400'}">
-                            ${isService ? 'Ремонт' : 'Товар'}
-                        </span>
-                        <h4 class="font-semibold text-white truncate text-sm mt-0.5">${item.name}</h4>
-                        <p class="text-xs text-slate-400 mt-0.5">
-                            ${isService ? `Робота: <span class="text-cyan-400 font-bold">${item.price} ₴</span>` : `Продаж: <span class="text-emerald-400 font-bold">${item.price} ₴</span> | Закуп: ${item.cost} ₴`}
-                        </p>
-                    </div>
-                    <div class="shrink-0">
-                        ${isService ? '' : `
-                            <div class="flex items-center bg-slate-950 rounded-lg border border-slate-700 overflow-hidden text-xs">
-                                <button onclick="changeQty(${item.id}, -1)" class="px-2 py-1 text-slate-400 hover:bg-slate-800 transition cursor-pointer">-</button>
-                                <span class="px-2.5 font-bold text-slate-200">${item.qty} шт</span>
-                                <button onclick="changeQty(${item.id}, 1)" class="px-2 py-1 text-slate-400 hover:bg-slate-800 transition cursor-pointer">+</button>
-                            </div>
-                        `}
-                    </div>
-                    <button onclick="deleteStockItem(${item.id})" class="absolute top-2 right-2 text-slate-600 hover:text-rose-400 text-xs cursor-pointer">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        function renderOrdersPage() {
-            const container = document.getElementById('orders-list');
-            const empty = document.getElementById('empty-state');
-            if(!container || !empty) return;
-            container.innerHTML = '';
-
-            if(orders.length === 0) {
-                empty.style.display = 'block';
-                return;
-            } else {
-                empty.style.display = 'none';
-            }
-
-            orders.forEach(order => {
-                if(!order) return;
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-700/20 transition border-b border-slate-700/50";
-                const badgeColor = order.type === 'Ремонт' ? 'bg-cyan-500/10 text-cyan-400' : 'bg-amber-500/10 text-amber-400';
-
-                tr.innerHTML = `
-                    <td class="p-4"><span class="text-xs px-2 py-0.5 rounded font-medium ${badgeColor}">${order.type}</span></td>
-                    <td class="p-4"><p class="font-medium text-white text-sm">${order.title}</p><p class="text-xs text-slate-400">${order.desc}</p></td>
-                    <td class="p-4 text-center text-slate-400">${order.cost} ₴</td>
-                    <td class="p-4 text-center text-emerald-400 font-semibold">${order.totalClient} ₴</td>
-                    <td class="p-4 text-center text-cyan-400 font-bold bg-cyan-500/5">${order.totalProfit} ₴</td>
-                    <td class="p-4 text-center">
-                        <button onclick="deleteOrder(${order.id})" class="text-slate-500 hover:text-rose-400 cursor-pointer">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
-                    </td>
-                `;
-                container.prepend(tr);
-            });
-        }
-
-        function deleteOrder(id) {
-            if(confirm("Скасувати цю операцію в хмарі?")) {
                 orders = orders.filter(o => o.id !== id);
-                pushToCloud();
+                db.ref('orders').set(orders);
             }
         }
 
         function clearAllOrders() {
-            if(confirm("Очистити всю фінансову історію майстерні?")) {
-                orders = [];
-                pushToCloud();
+            if(confirm('Ви впевнені, що хочете повністю очистити фінансову книгу за сьогодні?')) {
+                db.ref('orders').remove();
             }
         }
 
-        function updateStats() {
-            const totalTurnover = orders.reduce((sum, o) => sum + (o.totalClient || 0), 0);
-            const totalProfit = orders.reduce((sum, o) => sum + (o.totalProfit || 0), 0);
-            
-            const tEl = document.getElementById('stats-turnover');
-            const pEl = document.getElementById('stats-profit');
-            if(tEl) tEl.innerText = totalTurnover;
-            if(pEl) pEl.innerText = totalProfit;
-        }
-
+        // ОНОВЛЕННЯ СТАТИСТИКИ ТА СТОРІНОК
         function updateBadges() {
-            const cBadge = document.getElementById('count-badge');
-            const sBadge = document.getElementById('stock-badge');
-            if(cBadge) cBadge.innerText = orders.length;
-            if(sBadge) sBadge.innerText = stock.reduce((acc, obj) => acc + ((obj && obj.qty) || 0), 0);
+            const activeStockCount = stock.filter(item => item && item.type === 'product').length;
+            document.getElementById('stock-badge').innerText = activeStockCount;
+            document.getElementById('count-badge').innerText = orders.length;
         }
 
-        function pushToCloud() {
-            db.ref().set({
-                stock: stock,
-                orders: orders
-            }).catch(e => console.error("Помилка відправки в хмару:", e));
+        function updateStats() {
+            let turnover = 0;
+            let profit = 0;
+            orders.forEach(o => {
+                if(o) {
+                    turnover += o.total || 0;
+                    profit += o.profit || 0;
+                }
+            });
+            document.getElementById('stats-turnover').innerText = Math.round(turnover);
+            document.getElementById('stats-profit').innerText = Math.round(profit);
+        }
+
+        function renderStockPage() {
+            const grid = document.getElementById('stock-grid');
+            if(!grid) return;
+            grid.innerHTML = '';
+
+            if(stock.length === 0) {
+                grid.innerHTML = '<p class="text-slate-500 text-sm">На складі ще немає жодного товару.</p>';
+                return;
+            }
+
+            stock.forEach(item => {
+                if(!item) return;
+                const isService = item.type === 'service';
+                const div = document.createElement('div');
+                div.className = "bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-between items-center";
+                
+                div.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <img src="${item.img ? item.img : placeholderImg}" onerror="this.src='${placeholderImg}'" class="w-12 h-12 object-cover rounded-lg bg-slate-900 border border-slate-800">
+                        <div>
+                            <h4 class="font-bold text-white text-sm">${item.name}</h4>
+                            <p class="text-xs text-slate-400 mt-0.5">
+                                ${isService ? 'Ремонт (Робота)' : `Закуп: ${item.cost} ₴ | К-сть: ${item.qty} шт`}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="text-right flex items-center gap-3">
+                        <div>
+                            <p class="text-sm font-black text-emerald-400">${item.price} ₴</p>
+                            <p class="text-[10px] text-slate-500">ціна</p>
+                        </div>
+                        <button onclick="deleteStockItem(${item.id})" class="text-slate-600 hover:text-rose-400 p-1.5 transition cursor-pointer">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(div);
+            });
+        }
+
+        function renderOrdersPage() {
+            const list = document.getElementById('orders-list');
+            const emptyState = document.getElementById('empty-state');
+            if(!list) return;
+            list.innerHTML = '';
+
+            if(orders.length === 0) {
+                if(emptyState) emptyState.style.display = 'block';
+                return;
+            }
+
+            if(emptyState) emptyState.style.display = 'none';
+
+            orders.slice().reverse().forEach(o => {
+                if(!o) return;
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800/30 transition border-b border-slate-700/30";
+                
+                tr.innerHTML = `
+                    <td class="p-4">
+                        <span class="px-2 py-0.5 rounded text-xs font-bold ${o.type === 'service' ? 'bg-cyan-500/10 text-cyan-400' : 'bg-amber-500/10 text-amber-400'}">
+                            ${o.type === 'service' ? 'Ремонт' : 'Товар'}
+                        </span>
+                    </td>
+                    <td class="p-4">
+                        <p class="font-semibold text-white">${o.title}</p>
+                        <p class="text-xs text-slate-400 mt-0.5">${o.desc} | <span class="text-[11px] text-slate-500">${o.date}</span></p>
+                    </td>
+                    <td class="p-4 text-center text-slate-400">${o.cost} ₴</td>
+                    <td class="p-4 text-center text-emerald-400 font-bold">${o.total} ₴</td>
+                    <td class="p-4 text-center text-cyan-400 font-black">${o.profit} ₴</td>
+                    <td class="p-4 text-center">
+                        <button onclick="cancelOrder(${o.id})" class="text-slate-500 hover:text-rose-400 transition cursor-pointer">
+                            <i class="fa-solid fa-rotate-left"></i>
+                        </button>
+                    </td>
+                `;
+                list.appendChild(tr);
+            });
         }
     </script>
 </body>
